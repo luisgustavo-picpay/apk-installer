@@ -2,6 +2,12 @@ name: Build macOS DMG
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
   build-mac:
@@ -25,9 +31,7 @@ jobs:
         run: npm ci
 
       - name: Build DMG
-        run: npm run build
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --mac dmg --publish never
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4

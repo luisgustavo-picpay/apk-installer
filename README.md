@@ -12,14 +12,16 @@ Script interativo que facilita a instalação de aplicativos Android (`.apk`) di
 
 ## 📥 Download
 
-Clique no botão do seu sistema operacional para baixar:
+Clique no botão do seu sistema operacional para baixar o ZIP (inclui o script + guia de instalação):
 
-| Sistema Operacional | Arquivo | Guia de Instalação |
+| Sistema Operacional | Download | Guia Online |
 |:---:|:---:|:---:|
-| 🍎 **macOS** | [⬇️ Baixar install-apk.sh](../../raw/main/mac/install-apk.sh) | [📖 Ver guia para Mac](mac/GUIA.md) |
-| 🪟 **Windows** | [⬇️ Baixar install-apk.bat](../../raw/main/windows/install-apk.bat) | [📖 Ver guia para Windows](windows/GUIA.md) |
+| 🍎 **macOS** | [⬇️ Baixar ZIP para Mac](../../raw/main/downloads/apk-installer-mac.zip) | [📖 Ver guia](mac/GUIA.md) |
+| 🪟 **Windows** | [⬇️ Baixar ZIP para Windows](../../raw/main/downloads/apk-installer-windows.zip) | [📖 Ver guia](windows/GUIA.md) |
 
 > 💡 **Não sabe qual escolher?** Se você usa um MacBook ou iMac, escolha **macOS**. Se usa um notebook Dell, Lenovo, HP ou PC, escolha **Windows**.
+>
+> 📦 Cada ZIP contém o **script** + o **guia de instalação em PDF**. Basta extrair e seguir o guia!
 
 ---
 

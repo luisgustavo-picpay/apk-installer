@@ -10,7 +10,21 @@ Script interativo que facilita a instalação de aplicativos Android (`.apk`) di
 
 ---
 
-## 📥 Download
+## �️ App Desktop (Recomendado)
+
+O jeito mais fácil de usar! Baixe o app, arraste para Applications e pronto.
+
+| Sistema | Download |
+|:---:|:---:|
+| 🍎 **macOS** (Intel + Apple Silicon) | [⬇️ Baixar DMG](../../releases/latest/download/APK-Installer-universal.dmg) |
+
+> 💡 Após baixar o `.dmg`, abra e arraste o **APK Installer** para a pasta **Applications**.
+>
+> ⚠️ Na primeira abertura, o macOS pode bloquear. Vá em **Ajustes do Sistema → Privacidade e Segurança** e clique em **"Abrir mesmo assim"**.
+
+---
+
+## 📥 Download (Scripts)
 
 Clique no botão do seu sistema operacional para baixar o ZIP (inclui o script + guia de instalação):
 
@@ -179,13 +193,24 @@ No Windows, alguns celulares precisam de driver extra para serem reconhecidos:
 
 ```
 📁 apk-installer/
-├── 📄 README.md          ← você está aqui
+├── 📄 README.md              ← você está aqui
+├── 📁 .github/workflows/    ← CI para gerar o DMG automaticamente
+├── 📁 desktop-app/          ← app Electron (versão recomendada)
+│   ├── 📁 src/
+│   │   ├── 🎨 styles.css
+│   │   ├── 📄 index.html
+│   │   ├── ⚡ renderer.js
+│   │   ├── 🔧 main.js
+│   │   └── 🔗 preload.js
+│   ├── 📁 assets/
+│   │   └── 🖼️ icon.icns
+│   └── 📄 package.json
 ├── 📁 mac/
-│   ├── 🔧 install-apk.sh   ← script para macOS
-│   └── 📖 GUIA.md           ← guia detalhado para Mac
+│   ├── 🔧 install-apk.sh     ← script para macOS
+│   └── 📖 GUIA.md
 └── 📁 windows/
-    ├── 🔧 install-apk.bat   ← script para Windows
-    └── 📖 GUIA.md            ← guia detalhado para Windows
+    ├── 🔧 install-apk.bat    ← script para Windows
+    └── 📖 GUIA.md
 ```
 
 ---

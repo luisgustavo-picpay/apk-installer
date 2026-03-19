@@ -354,6 +354,50 @@
     .scroll-area::-webkit-scrollbar { width: 6px; }
     .scroll-area::-webkit-scrollbar-track { background: transparent; }
     .scroll-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Dependency rows ──────────────────────────────── */
+    .dep-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      transition: border-color 0.3s ease;
+    }
+    .dep-row.ok { border-color: rgba(0, 214, 143, 0.4); }
+    .dep-row.err { border-color: rgba(255, 107, 107, 0.4); }
+    .dep-icon { font-size: 22px; flex-shrink: 0; }
+    .dep-info { flex: 1; text-align: left; }
+    .dep-name { font-size: 13px; font-weight: 600; }
+    .dep-desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .dep-status { flex-shrink: 0; }
+
+    /* ── Error tip box ────────────────────────────────── */
+    .error-tip {
+      background: rgba(108, 92, 231, 0.08);
+      border: 1px solid rgba(108, 92, 231, 0.25);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      width: 100%;
+      max-width: 480px;
+      text-align: left;
+      margin-top: 4px;
+    }
+    .error-tip .tip-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .error-tip .tip-text {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
@@ -372,17 +416,51 @@
       <div class="step-dot" data-step="3"></div>
     </div>
 
-    <!-- Step 0: Check ADB -->
+    <!-- Step 0: Dependency Dashboard -->
     <div class="step-panel active" id="step-0">
-      <div class="card">
-        <div class="card-icon">🔍</div>
-        <h2>Verificando dependências...</h2>
-        <p>Checando se o ADB está instalado no sistema</p>
-        <div style="margin-top: 20px;">
-          <div class="spinner" style="margin: 0 auto;" id="adb-spinner"></div>
-          <div id="adb-status" style="margin-top: 16px;"></div>
+      <div style="width:100%; max-width:480px; text-align:center;">
+        <div style="font-size:32px; margin-bottom:8px;">⚙️</div>
+        <h2 style="font-size:17px; font-weight:600; margin-bottom:4px;">Dependências do Sistema</h2>
+        <p style="font-size:12px; color:var(--text-dim); margin-bottom:20px;">Verificando o que está instalado no seu computador</p>
+      </div>
+
+      <div style="width:100%; max-width:480px; display:flex; flex-direction:column; gap:10px;" id="dep-list">
+        <!-- ADB -->
+        <div class="dep-row" id="dep-adb">
+          <div class="dep-icon">📟</div>
+          <div class="dep-info">
+            <div class="dep-name">ADB (Android Debug Bridge)</div>
+            <div class="dep-desc" id="dep-adb-desc">Ferramenta para comunicação com dispositivos Android</div>
+          </div>
+          <div class="dep-status" id="dep-adb-status"><div class="spinner" style="width:20px;height:20px;border-width:2px;"></div></div>
+        </div>
+        <!-- ADB Server -->
+        <div class="dep-row" id="dep-server">
+          <div class="dep-icon">🔌</div>
+          <div class="dep-info">
+            <div class="dep-name">ADB Server</div>
+            <div class="dep-desc" id="dep-server-desc">Serviço de conexão com dispositivos</div>
+          </div>
+          <div class="dep-status" id="dep-server-status"><span style="color:var(--text-dim); font-size:12px;">aguardando</span></div>
+        </div>
+        <!-- Platform -->
+        <div class="dep-row" id="dep-platform">
+          <div class="dep-icon">💻</div>
+          <div class="dep-info">
+            <div class="dep-name">Sistema Operacional</div>
+            <div class="dep-desc" id="dep-platform-desc">Detectando plataforma...</div>
+          </div>
+          <div class="dep-status" id="dep-platform-status"><span style="color:var(--text-dim); font-size:12px;">—</span></div>
         </div>
       </div>
+
+      <div id="dep-install-box" style="display:none; width:100%; max-width:480px; margin-top:8px;">
+        <div class="help-box">
+          <strong>⚠️ ADB não encontrado</strong><br>
+          O ADB é necessário para instalar apps. Clique abaixo para instalar automaticamente.
+        </div>
+      </div>
+
       <div id="adb-actions" style="display:none;" class="actions"></div>
     </div>
 
@@ -478,29 +556,54 @@
       if (n === 3) doInstall();
     }
 
-    // ── Step 0: ADB Check ───────────────────────────────
-    async function checkAdb() {
-      const result = await window.api.checkAdb();
-      const spinner = document.getElementById('adb-spinner');
-      const status = document.getElementById('adb-status');
-      const actions = document.getElementById('adb-actions');
+    // ── Step 0: Dependency Dashboard ────────────────────
+    function setDepStatus(id, ok, detail) {
+      const row = document.getElementById(`dep-${id}`);
+      const statusEl = document.getElementById(`dep-${id}-status`);
+      row.classList.remove('ok', 'err');
+      row.classList.add(ok ? 'ok' : 'err');
+      statusEl.innerHTML = ok
+        ? '<span class="status-badge status-ok" style="padding:4px 10px; font-size:11px;">✔ OK</span>'
+        : '<span class="status-badge status-err" style="padding:4px 10px; font-size:11px;">✖ Ausente</span>';
+      if (detail) {
+        document.getElementById(`dep-${id}-desc`).textContent = detail;
+      }
+    }
 
-      spinner.style.display = 'none';
+    async function checkDeps() {
+      const actions = document.getElementById('adb-actions');
+      const installBox = document.getElementById('dep-install-box');
+
+      // Platform (instant)
+      const platformDesc = document.getElementById('dep-platform-desc');
+      const platformStatus = document.getElementById('dep-platform-status');
+      const ua = navigator.userAgent;
+      const isMac = ua.includes('Mac');
+      platformDesc.textContent = isMac ? 'macOS' : 'Windows';
+      document.getElementById('dep-platform').classList.add('ok');
+      platformStatus.innerHTML = '<span class="status-badge status-ok" style="padding:4px 10px; font-size:11px;">✔ OK</span>';
+
+      // ADB check
+      const result = await window.api.checkAdb();
 
       if (result.installed) {
-        status.innerHTML = `
-          <span class="status-badge status-ok">✔ ADB instalado</span>
-          <p style="font-size:11px; color: var(--text-dim); margin-top:8px;">${result.version}</p>
-        `;
-        actions.innerHTML = '<button class="btn btn-primary" onclick="goToStep(1)">Continuar →</button>';
-        actions.style.display = 'flex';
+        setDepStatus('adb', true, result.version);
 
-        // Auto-advance after 1.2s
-        setTimeout(() => goToStep(1), 1200);
+        // Check server
+        document.getElementById('dep-server-status').innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>';
+        const devices = await window.api.listDevices();
+        setDepStatus('server', true, 'Servidor rodando — ' + devices.length + ' dispositivo(s)');
+
+        installBox.style.display = 'none';
+        actions.innerHTML = '<button class="btn btn-primary" onclick="goToStep(1)">Tudo pronto — Continuar →</button>';
+        actions.style.display = 'flex';
       } else {
-        status.innerHTML = '<span class="status-badge status-err">✖ ADB não encontrado</span>';
+        setDepStatus('adb', false, 'Não encontrado no sistema');
+        setDepStatus('server', false, 'Depende do ADB');
+
+        installBox.style.display = 'block';
         actions.innerHTML = `
-          <button class="btn btn-primary" onclick="doInstallAdb()">Instalar ADB automaticamente</button>
+          <button class="btn btn-primary" onclick="doInstallAdb()">⬇️ Instalar ADB automaticamente</button>
         `;
         actions.style.display = 'flex';
       }
@@ -508,27 +611,23 @@
 
     async function doInstallAdb() {
       const actions = document.getElementById('adb-actions');
-      const status = document.getElementById('adb-status');
-      const spinner = document.getElementById('adb-spinner');
+      const installBox = document.getElementById('dep-install-box');
 
       actions.style.display = 'none';
-      spinner.style.display = 'block';
-      status.innerHTML = '<p style="font-size:13px; color: var(--text-dim);">Instalando... isso pode levar alguns minutos</p>';
+      installBox.style.display = 'none';
+      document.getElementById('dep-adb-status').innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>';
+      document.getElementById('dep-adb-desc').textContent = 'Instalando... pode levar alguns minutos';
+      document.getElementById('dep-adb').classList.remove('ok', 'err');
 
       const result = await window.api.installAdb();
 
-      spinner.style.display = 'none';
-
       if (result.success) {
-        status.innerHTML = '<span class="status-badge status-ok">✔ ADB instalado com sucesso!</span>';
-        actions.innerHTML = '<button class="btn btn-primary" onclick="goToStep(1)">Continuar →</button>';
-        actions.style.display = 'flex';
-        setTimeout(() => goToStep(1), 1000);
+        // Re-run full check to update all statuses
+        await checkDeps();
       } else {
-        status.innerHTML = `
-          <span class="status-badge status-err">✖ Falha na instalação</span>
-          <p style="font-size:12px; color: var(--text-dim); margin-top:8px;">${result.message}</p>
-        `;
+        setDepStatus('adb', false, 'Falha na instalação — ' + result.message);
+        installBox.innerHTML = `<div class="help-box"><strong>❌ Instalação falhou</strong><br>${result.message}<br>Tente instalar manualmente.</div>`;
+        installBox.style.display = 'block';
         actions.innerHTML = '<button class="btn btn-secondary" onclick="doInstallAdb()">Tentar novamente</button>';
         actions.style.display = 'flex';
       }
@@ -693,13 +792,32 @@
           </div>
         `;
       } else {
+        const errorCode = result.code || 'UNKNOWN';
+        const errorTitle = result.title || 'Falha na instalação';
+        const errorMsg = result.error || 'Erro desconhecido.';
+        const errorTip = result.tip || '';
+
+        let tipHtml = '';
+        if (errorTip) {
+          tipHtml = `
+            <div class="error-tip">
+              <div class="tip-label">💡 Como resolver</div>
+              <div class="tip-text">${errorTip}</div>
+            </div>
+          `;
+        }
+
         resultView.innerHTML = `
           <div class="result-card error">
             <div class="result-icon">😞</div>
-            <h2 style="color: var(--red);">Falha na instalação</h2>
-            <p style="margin-top: 8px;">${result.error}</p>
+            <h2 style="color: var(--red);">${errorTitle}</h2>
+            <p style="margin-top: 8px;">${errorMsg}</p>
+            <div style="margin-top: 10px;">
+              <span style="font-size:10px; padding:3px 8px; background:var(--bg-hover); border-radius:6px; color:var(--text-dim); font-family:monospace;">${errorCode}</span>
+            </div>
           </div>
-          <div class="actions" style="margin-top: 16px;">
+          ${tipHtml}
+          <div class="actions" style="margin-top: 12px;">
             <button class="btn btn-secondary" onclick="goToStep(2)">← Voltar</button>
             <button class="btn btn-primary" onclick="goToStep(3)">Tentar novamente</button>
           </div>
@@ -715,7 +833,7 @@
     }
 
     // ── Init ────────────────────────────────────────────
-    checkAdb();
+    checkDeps();
   </script>
 </body>
 </html>

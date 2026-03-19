@@ -234,15 +234,73 @@ ipcMain.handle('list-devices', async () => {
   }
 });
 
+function parseInstallError(output) {
+  const errors = [
+    { match: 'INSTALL_FAILED_VERSION_DOWNGRADE', code: 'VERSION_DOWNGRADE',
+      title: 'Versão mais antiga que a instalada',
+      message: 'O celular já tem uma versão mais nova deste app.',
+      tip: 'Desinstale o app atual do celular antes de instalar esta versão. Vá em Configurações > Apps, encontre o app e toque em "Desinstalar".' },
+    { match: 'INSTALL_FAILED_INSUFFICIENT_STORAGE', code: 'NO_STORAGE',
+      title: 'Sem espaço no dispositivo',
+      message: 'O celular não tem espaço suficiente para instalar o app.',
+      tip: 'Libere espaço apagando fotos, vídeos ou apps que não usa mais. Verifique em Configurações > Armazenamento.' },
+    { match: 'INSTALL_FAILED_ALREADY_EXISTS', code: 'ALREADY_EXISTS',
+      title: 'App já está instalado',
+      message: 'Uma versão deste app já existe no dispositivo.',
+      tip: 'Desinstale a versão atual antes de instalar novamente, ou use a opção de atualização.' },
+    { match: 'INSTALL_PARSE_FAILED_NO_CERTIFICATES', code: 'NO_CERTIFICATES',
+      title: 'APK sem assinatura válida',
+      message: 'O arquivo APK não está assinado corretamente.',
+      tip: 'Verifique se o APK foi gerado/exportado corretamente. Peça um novo arquivo ao desenvolvedor.' },
+    { match: 'INSTALL_FAILED_UPDATE_INCOMPATIBLE', code: 'UPDATE_INCOMPATIBLE',
+      title: 'Atualização incompatível',
+      message: 'A assinatura do APK é diferente da versão instalada.',
+      tip: 'Desinstale o app existente antes de instalar. Isso acontece quando o app foi assinado com uma chave diferente.' },
+    { match: 'INSTALL_FAILED_OLDER_SDK', code: 'OLDER_SDK',
+      title: 'Android muito antigo',
+      message: 'Este APK requer uma versão mais nova do Android.',
+      tip: 'Verifique se o celular atende à versão mínima do Android necessária. Atualize o sistema se possível.' },
+    { match: 'INSTALL_FAILED_CONFLICTING_PROVIDER', code: 'CONFLICTING_PROVIDER',
+      title: 'Conflito com outro app',
+      message: 'Outro app instalado está em conflito com este.',
+      tip: 'Geralmente acontece quando há outra versão do app (ex: debug e release). Desinstale a outra versão primeiro.' },
+    { match: 'INSTALL_FAILED_NO_MATCHING_ABIS', code: 'NO_MATCHING_ABIS',
+      title: 'Arquitetura incompatível',
+      message: 'O APK não é compatível com o processador deste dispositivo.',
+      tip: 'O APK foi compilado para uma arquitetura diferente (ex: ARM vs x86). Peça uma versão compatível ao desenvolvedor.' },
+    { match: 'device offline', code: 'DEVICE_OFFLINE',
+      title: 'Dispositivo desconectado',
+      message: 'O celular perdeu a conexão durante a instalação.',
+      tip: 'Verifique o cabo USB, reconecte o celular e tente novamente. Evite desbloquear/bloquear o celular durante a instalação.' },
+    { match: 'INSTALL_FAILED_USER_RESTRICTED', code: 'USER_RESTRICTED',
+      title: 'Instalação bloqueada',
+      message: 'O dispositivo está bloqueando instalações de fontes externas.',
+      tip: 'No celular, vá em Configurações > Segurança e ative "Fontes desconhecidas" ou "Instalar apps desconhecidos".' },
+  ];
+
+  for (const e of errors) {
+    if (output.includes(e.match)) {
+      return { success: false, code: e.code, title: e.title, error: e.message, tip: e.tip };
+    }
+  }
+
+  return null;
+}
+
 ipcMain.handle('install-apk', async (_event, { deviceId, apkPath }) => {
   const adbPath = await findAdb();
-  if (!adbPath) return { success: false, error: 'ADB não encontrado.' };
+  if (!adbPath) return { success: false, code: 'NO_ADB', title: 'ADB não encontrado', error: 'O ADB não está instalado.', tip: 'Volte ao passo 1 e instale o ADB.' };
 
   try {
     const output = await new Promise((resolve, reject) => {
       execFile(adbPath, ['-s', deviceId, 'install', '-r', apkPath], { timeout: 120000 }, (err, stdout, stderr) => {
-        if (err) reject(new Error(stderr || stdout || err.message));
-        else resolve(stdout);
+        if (err) {
+          // ADB may return non-zero but still have useful output
+          const combined = (stderr || '') + (stdout || '') + (err.message || '');
+          reject(new Error(combined));
+        } else {
+          resolve(stdout);
+        }
       });
     });
 
@@ -250,18 +308,14 @@ ipcMain.handle('install-apk', async (_event, { deviceId, apkPath }) => {
       return { success: true };
     }
 
-    // Parse common errors
-    if (output.includes('INSTALL_FAILED_VERSION_DOWNGRADE'))
-      return { success: false, error: 'Já existe uma versão mais nova instalada. Desinstale primeiro.' };
-    if (output.includes('INSTALL_FAILED_INSUFFICIENT_STORAGE'))
-      return { success: false, error: 'Celular sem espaço. Libere espaço e tente novamente.' };
-    if (output.includes('INSTALL_FAILED_ALREADY_EXISTS'))
-      return { success: false, error: 'App já instalado. Desinstale a versão anterior.' };
-    if (output.includes('INSTALL_PARSE_FAILED_NO_CERTIFICATES'))
-      return { success: false, error: 'APK não está assinado corretamente.' };
+    const parsed = parseInstallError(output);
+    if (parsed) return parsed;
 
-    return { success: false, error: output.trim() };
+    return { success: false, code: 'UNKNOWN', title: 'Erro desconhecido', error: output.trim(), tip: 'Tente desinstalar o app do celular e instalar novamente. Se o erro persistir, envie esta mensagem para o suporte.' };
   } catch (err) {
-    return { success: false, error: err.message };
+    const parsed = parseInstallError(err.message);
+    if (parsed) return parsed;
+
+    return { success: false, code: 'UNKNOWN', title: 'Erro na instalação', error: err.message, tip: 'Verifique se o celular está conectado e tente novamente.' };
   }
 });

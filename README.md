@@ -16,7 +16,7 @@ O jeito mais fácil de usar! Baixe o app, arraste para Applications e pronto.
 
 | Sistema | Download |
 |:---:|:---:|
-| 🍎 **macOS** (Intel + Apple Silicon) | [⬇️ Baixar DMG](../../releases/latest/download/APK-Installer-universal.dmg) |
+| 🍎 **macOS** (Intel + Apple Silicon) | [⬇️ Baixar DMG](../../releases/latest) |
 
 > 💡 Após baixar o `.dmg`, abra e arraste o **APK Installer** para a pasta **Applications**.
 >

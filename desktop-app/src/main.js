@@ -44,15 +44,27 @@ function getCommonAdbPaths() {
       '/usr/local/share/android-commandlinetools/platform-tools',
       '/opt/homebrew/bin',
       '/usr/local/bin',
+      '/opt/homebrew/Caskroom/android-platform-tools/latest/platform-tools',
     ];
   }
   // Windows
   return [
     path.join(process.env.LOCALAPPDATA || '', 'Android/Sdk/platform-tools'),
     path.join(home, 'AppData/Local/Android/Sdk/platform-tools'),
+    path.join(process.env.LOCALAPPDATA || '', 'Android/platform-tools'),
     'C:\\Android\\platform-tools',
     'C:\\android-sdk\\platform-tools',
   ];
+}
+
+// Ensure common macOS paths are in process.env.PATH for packaged apps
+if (process.platform === 'darwin') {
+  const extraPaths = ['/opt/homebrew/bin', '/usr/local/bin', '/opt/homebrew/sbin', '/usr/local/sbin'];
+  const currentPath = process.env.PATH || '';
+  const missing = extraPaths.filter(p => !currentPath.includes(p));
+  if (missing.length) {
+    process.env.PATH = [...missing, currentPath].join(':');
+  }
 }
 
 function findAdb() {
@@ -106,26 +118,40 @@ ipcMain.handle('check-adb', async () => {
 
 ipcMain.handle('install-adb', async () => {
   if (process.platform === 'darwin') {
-    // Check if Homebrew is available
-    const hasBrew = await new Promise((resolve) => {
-      exec('which brew', (err, stdout) => resolve(!err && !!stdout.trim()));
+    // Find brew in common locations (PATH may be minimal in packaged apps)
+    const brewPath = await new Promise((resolve) => {
+      const candidates = ['/opt/homebrew/bin/brew', '/usr/local/bin/brew'];
+      for (const b of candidates) {
+        if (fs.existsSync(b)) { resolve(b); return; }
+      }
+      // Fallback to which
+      exec('which brew', (err, stdout) => {
+        resolve(!err && stdout.trim() ? stdout.trim() : null);
+      });
     });
 
-    if (hasBrew) {
+    if (brewPath) {
       return new Promise((resolve) => {
-        const child = spawn('brew', ['install', '--cask', 'android-platform-tools'], {
-          shell: true,
+        const child = spawn(brewPath, ['install', '--cask', 'android-platform-tools'], {
+          env: { ...process.env },
         });
         let output = '';
         child.stdout.on('data', (d) => (output += d.toString()));
         child.stderr.on('data', (d) => (output += d.toString()));
+        child.on('error', (err) => {
+          resolve({
+            success: false,
+            message: `Erro ao executar brew: ${err.message}`,
+            output,
+          });
+        });
         child.on('close', async (code) => {
           const adbPath = await findAdb();
           resolve({
             success: !!adbPath,
             message: adbPath
               ? 'ADB instalado com sucesso via Homebrew!'
-              : `Homebrew retornou código ${code}. Tente: brew install --cask android-platform-tools`,
+              : `Homebrew retornou código ${code}. Tente no Terminal: brew install --cask android-platform-tools`,
             output,
           });
         });

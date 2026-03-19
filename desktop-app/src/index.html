@@ -398,6 +398,19 @@
       color: var(--text-dim);
       line-height: 1.5;
     }
+
+    /* ── Device section headers ──────────────────────── */
+    .device-section-header {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      padding: 10px 4px 4px;
+    }
+    .device-section-header:not(:first-child) {
+      margin-top: 8px;
+    }
   </style>
 </head>
 <body>
@@ -591,8 +604,9 @@
 
         // Check server
         document.getElementById('dep-server-status').innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>';
-        const devices = await window.api.listDevices();
-        setDepStatus('server', true, 'Servidor rodando — ' + devices.length + ' dispositivo(s)');
+        const response = await window.api.listDevices();
+        const devCount = (response.devices || []).length;
+        setDepStatus('server', true, 'Servidor rodando — ' + devCount + ' dispositivo(s)');
 
         installBox.style.display = 'none';
         actions.innerHTML = '<button class="btn btn-primary" onclick="goToStep(1)">Tudo pronto — Continuar →</button>';
@@ -689,6 +703,26 @@
     }
 
     // ── Step 2: Devices ─────────────────────────────────
+    function createDeviceItem(d) {
+      const item = document.createElement('div');
+      item.className = 'device-item';
+      item.innerHTML = `
+        <div class="icon">${d.isEmulator ? '💻' : '📱'}</div>
+        <div class="info">
+          <div class="name">${d.label}</div>
+          <div class="id">${d.id}${d.status !== 'device' ? ' <span style="color:var(--yellow);">[' + d.status + ']</span>' : ''}</div>
+        </div>
+        <div class="check">✓</div>
+      `;
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.device-item').forEach((el) => el.classList.remove('selected'));
+        item.classList.add('selected');
+        selectedDevice = d.id;
+        document.getElementById('btn-install').disabled = false;
+      });
+      return item;
+    }
+
     async function loadDevices() {
       const loading = document.getElementById('device-loading');
       const results = document.getElementById('device-results');
@@ -700,13 +734,23 @@
       noDevices.style.display = 'none';
       actions.style.display = 'none';
       selectedDevice = null;
-      document.getElementById('btn-install').disabled = true;
 
-      const devices = await window.api.listDevices();
+      const response = await window.api.listDevices();
+      const devices = response.devices || [];
+      const timedOut = response.timedOut || false;
 
       loading.style.display = 'none';
 
       if (devices.length === 0) {
+        const noDevEl = document.getElementById('no-devices');
+        // Show timeout-specific message if applicable
+        if (timedOut) {
+          noDevEl.querySelector('h2').textContent = 'Tempo de busca esgotado';
+          noDevEl.querySelector('p').textContent = 'Não foi possível detectar dispositivos em 20 segundos. Verifique a conexão e tente novamente.';
+        } else {
+          noDevEl.querySelector('h2').textContent = 'Nenhum dispositivo encontrado';
+          noDevEl.querySelector('p').textContent = 'Verifique se o celular está conectado e a Depuração USB ativada';
+        }
         noDevices.style.display = 'block';
         actions.innerHTML = `
           <button class="btn btn-secondary" onclick="goToStep(1)">← Voltar</button>
@@ -719,32 +763,34 @@
       const list = document.getElementById('device-list');
       list.innerHTML = '';
 
+      const physical = devices.filter(d => !d.isEmulator);
+      const emulators = devices.filter(d => d.isEmulator);
+
       document.getElementById('device-count-label').textContent =
         devices.length === 1 ? '1 dispositivo encontrado' : `${devices.length} dispositivos encontrados`;
 
-      devices.forEach((d) => {
-        const item = document.createElement('div');
-        item.className = 'device-item';
-        item.innerHTML = `
-          <div class="icon">${d.id.includes('emulator') ? '💻' : '📱'}</div>
-          <div class="info">
-            <div class="name">${d.label}</div>
-            <div class="id">${d.id}</div>
-          </div>
-          <div class="check">✓</div>
-        `;
-        item.addEventListener('click', () => {
-          document.querySelectorAll('.device-item').forEach((el) => el.classList.remove('selected'));
-          item.classList.add('selected');
-          selectedDevice = d.id;
-          document.getElementById('btn-install').disabled = false;
-        });
-        list.appendChild(item);
-      });
+      // Physical devices section
+      if (physical.length > 0) {
+        const header = document.createElement('div');
+        header.className = 'device-section-header';
+        header.innerHTML = '📱 Dispositivos físicos';
+        list.appendChild(header);
+        physical.forEach(d => list.appendChild(createDeviceItem(d)));
+      }
+
+      // Emulators section
+      if (emulators.length > 0) {
+        const header = document.createElement('div');
+        header.className = 'device-section-header';
+        header.innerHTML = '💻 Emuladores';
+        list.appendChild(header);
+        emulators.forEach(d => list.appendChild(createDeviceItem(d)));
+      }
 
       // Auto-select if only one device
-      if (devices.length === 1) {
-        list.children[0].click();
+      const allItems = list.querySelectorAll('.device-item');
+      if (allItems.length === 1) {
+        allItems[0].click();
       }
 
       results.style.display = 'block';

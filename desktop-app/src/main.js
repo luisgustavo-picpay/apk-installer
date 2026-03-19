@@ -194,7 +194,7 @@ ipcMain.handle('select-apk', async () => {
 
 ipcMain.handle('list-devices', async () => {
   const adbPath = await findAdb();
-  if (!adbPath) return [];
+  if (!adbPath) return { devices: [], timedOut: false };
 
   try {
     await runAdb(adbPath, ['start-server']);
@@ -205,33 +205,54 @@ ipcMain.handle('list-devices', async () => {
   // Small delay for device detection
   await new Promise((r) => setTimeout(r, 1500));
 
-  try {
-    const output = await runAdb(adbPath, ['devices']);
-    const lines = output
-      .split('\n')
-      .slice(1)
-      .filter((l) => l.trim() && !l.startsWith('*'));
+  const timeoutMs = 20000;
+  const devicePromise = (async () => {
+    try {
+      const output = await runAdb(adbPath, ['devices']);
+      const lines = output
+        .split('\n')
+        .slice(1)
+        .filter((l) => l.trim() && !l.startsWith('*'));
 
-    const devices = [];
-    for (const line of lines) {
-      const [id, status] = line.split('\t').map((s) => s.trim());
-      if (!id || !status) continue;
+      const devices = [];
+      for (const line of lines) {
+        const [id, status] = line.split('\t').map((s) => s.trim());
+        if (!id || !status) continue;
 
-      let model = 'Dispositivo';
-      let brand = '';
-      try {
-        model = (await runAdb(adbPath, ['-s', id, 'shell', 'getprop', 'ro.product.model'])).trim();
-        brand = (await runAdb(adbPath, ['-s', id, 'shell', 'getprop', 'ro.product.brand'])).trim();
-      } catch {
-        // ignore
+        const isEmulator = id.includes('emulator') || id.startsWith('localhost') || id.match(/^\d+\.\d+\.\d+\.\d+:\d+$/) !== null && false;
+        const isEmu = id.includes('emulator');
+
+        let model = isEmu ? 'Emulador Android' : 'Dispositivo';
+        let brand = '';
+        try {
+          const rawModel = (await runAdb(adbPath, ['-s', id, 'shell', 'getprop', 'ro.product.model'])).trim();
+          const rawBrand = (await runAdb(adbPath, ['-s', id, 'shell', 'getprop', 'ro.product.brand'])).trim();
+          if (rawModel) model = rawModel;
+          if (rawBrand) brand = rawBrand;
+        } catch {
+          // ignore
+        }
+
+        devices.push({
+          id,
+          status,
+          model,
+          brand,
+          label: brand ? `${brand} ${model}` : model,
+          isEmulator: isEmu,
+        });
       }
-
-      devices.push({ id, status, model, brand, label: brand ? `${brand} ${model}` : model });
+      return { devices, timedOut: false };
+    } catch {
+      return { devices: [], timedOut: false };
     }
-    return devices;
-  } catch {
-    return [];
-  }
+  })();
+
+  const timeoutPromise = new Promise((resolve) =>
+    setTimeout(() => resolve({ devices: [], timedOut: true }), timeoutMs)
+  );
+
+  return Promise.race([devicePromise, timeoutPromise]);
 });
 
 function parseInstallError(output) {

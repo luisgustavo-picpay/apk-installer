@@ -28,15 +28,7 @@ O jeito mais fácil de usar! Baixe o app, arraste para Applications e pronto.
 > 3. Vá em **Ajustes do Sistema** → **Privacidade e Segurança**
 > 4. Role até o final — vai aparecer uma mensagem sobre o "APK Installer"
 > 5. Clique em **"Abrir Mesmo Assim"**
->
-> **Opção 2 — Terminal (se a opção 1 não funcionar):**
-> 1. Arraste o **APK Installer** para a pasta **Applications** (se ainda não fez)
-> 2. Abra o **Terminal** (Command ⌘ + Espaço → digite "Terminal")
-> 3. Cole o comando abaixo e aperte Enter:
-> ```
-> xattr -cr "/Applications/APK Installer.app"
-> ```
-> 4. Abra o app normalmente — agora vai funcionar! ✅
+
 
 ---
 

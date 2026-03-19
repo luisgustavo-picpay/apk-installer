@@ -20,7 +20,15 @@ O jeito mais fácil de usar! Baixe o app, arraste para Applications e pronto.
 
 > 💡 Após baixar o `.dmg`, abra e arraste o **APK Installer** para a pasta **Applications**.
 >
-> ⚠️ Na primeira abertura, o macOS pode bloquear. Vá em **Ajustes do Sistema → Privacidade e Segurança** e clique em **"Abrir mesmo assim"**.
+> ⚠️ **Primeira abertura no macOS:** como o app não é assinado com certificado Apple, o macOS pode bloquear. Para abrir:
+> 1. Clique com o **botão direito** no app → **Abrir**
+> 2. Na janela que aparecer, clique em **"Abrir"** novamente
+>
+> Se aparecer "está danificado", abra o **Terminal** e cole:
+> ```
+> xattr -cr "/Applications/APK Installer.app"
+> ```
+> Depois abra o app normalmente.
 
 ---
 

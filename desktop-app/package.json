@@ -23,9 +23,11 @@
     "appId": "com.apkinstaller.app",
     "productName": "APK Installer",
     "icon": "assets/icon.png",
+    "afterPack": "./scripts/afterPack.js",
     "mac": {
       "category": "public.app-category.developer-tools",
       "icon": "assets/icon.icns",
+      "identity": null,
       "target": [
         { "target": "dmg", "arch": ["universal"] }
       ]
@@ -48,6 +50,9 @@
     "files": [
       "src/**/*",
       "assets/**/*"
-    ]
+    ],
+    "directories": {
+      "buildResources": "assets"
+    }
   }
 }

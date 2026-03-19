@@ -1,16 +1,10 @@
 # 📱 Instalador de APK no Android
 
-<p align="center">
-  <img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="macOS">
-  <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
-  <img src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android">
-</p>
-
-Script interativo que facilita a instalação de aplicativos Android (`.apk`) diretamente pelo computador — **sem precisar de conhecimento técnico**. O script verifica dependências, instala o que for necessário automaticamente, guia na conexão do celular e faz a instalação do app.
+Aplicativo desktop que facilita a instalação de aplicativos Android (`.apk`) diretamente pelo computador — **sem precisar de conhecimento técnico**. O app verifica dependências, instala o que for necessário automaticamente, guia na conexão do celular e faz a instalação do app.
 
 ---
 
-## �️ App Desktop (Recomendado)
+## 🖥️ App Desktop
 
 O jeito mais fácil de usar! Baixe o app para seu sistema e instale.
 
@@ -51,67 +45,9 @@ O jeito mais fácil de usar! Baixe o app para seu sistema e instale.
 
 ---
 
-## 📥 Download (Scripts)
+##  Preciso preparar meu celular?
 
-Clique no botão do seu sistema operacional para baixar o ZIP (inclui o script + guia de instalação):
-
-| Sistema Operacional | Download | Guia Online |
-|:---:|:---:|:---:|
-| 🍎 **macOS** | [⬇️ Baixar ZIP para Mac](../../raw/main/downloads/apk-installer-mac.zip) | [📖 Ver guia](mac/GUIA.md) |
-| 🪟 **Windows** | [⬇️ Baixar ZIP para Windows](../../raw/main/downloads/apk-installer-windows.zip) | [📖 Ver guia](windows/GUIA.md) |
-
-> 💡 **Não sabe qual escolher?** Se você usa um MacBook ou iMac, escolha **macOS**. Se usa um notebook Dell, Lenovo, HP ou PC, escolha **Windows**.
->
-> 📦 Cada ZIP contém o **script** + o **guia de instalação em PDF**. Basta extrair e seguir o guia!
-
----
-
-## 🚀 Como usar — Resumo rápido
-
-### 🍎 No Mac
-
-1. **Baixe** o arquivo `install-apk.sh` (link acima)
-2. Abra o **Terminal** (pressione `Command ⌘ + Espaço`, digite "Terminal" e aperte Enter)
-3. Navegue até a pasta onde salvou o arquivo:
-   ```
-   cd ~/Downloads
-   ```
-4. Dê permissão ao script (só na primeira vez):
-   ```
-   chmod +x install-apk.sh
-   ```
-5. Execute:
-   ```
-   ./install-apk.sh
-   ```
-6. **Siga as instruções na tela** — o script faz o resto! 🎉
-
----
-
-### 🪟 No Windows
-
-1. **Baixe** o arquivo `install-apk.bat` (link acima)
-2. Encontre o arquivo na pasta de Downloads
-3. **Clique duas vezes** no `install-apk.bat`
-4. Se aparecer aviso do Windows, clique em **"Mais informações"** → **"Executar assim mesmo"**
-5. **Siga as instruções na tela** — o script faz o resto! 🎉
-
----
-
-## ✨ O que o script faz automaticamente
-
-| Etapa | O que acontece |
-|:---:|---|
-| 1️⃣ | **Verifica o ADB** — Se não estiver instalado, baixa e instala sozinho |
-| 2️⃣ | **Pede o APK** — Basta arrastar o arquivo `.apk` para a janela |
-| 3️⃣ | **Encontra o celular** — Lista dispositivos conectados e guia na conexão |
-| 4️⃣ | **Instala o app** — Envia e instala o APK no celular automaticamente |
-
----
-
-## 📱 Preciso preparar meu celular?
-
-Sim! Antes de usar o script, você precisa ativar o **Modo Desenvolvedor** e a **Depuração USB** no celular. Calma, é simples:
+Sim! Antes de usar o app, você precisa ativar o **Modo Desenvolvedor** e a **Depuração USB** no celular. Calma, é simples:
 
 ### Passo 1 — Ativar o Modo Desenvolvedor
 
@@ -143,40 +79,11 @@ Sem problema! Você pode usar um **emulador** (celular virtual no computador):
 2. Abra e vá em **Device Manager** (ícone de celular)
 3. Crie um dispositivo virtual (ex: Pixel 6)
 4. Inicie o emulador
-5. Execute o script normalmente — ele detecta o emulador automaticamente
+5. Execute o app normalmente — ele detecta o emulador automaticamente
 
 ---
 
 ## ❓ Problemas comuns
-
-<details>
-<summary><strong>🍎 Mac: "Permission denied" ao executar</strong></summary>
-
-Execute no Terminal:
-```
-chmod +x install-apk.sh
-```
-</details>
-
-<details>
-<summary><strong>🍎 Mac: "command not found: adb"</strong></summary>
-
-Execute o script normalmente — ele instala o ADB automaticamente.
-Se já executou e o erro persiste, feche o Terminal e abra novamente.
-</details>
-
-<details>
-<summary><strong>🪟 Windows: "O Windows protegeu seu PC"</strong></summary>
-
-Clique em **"Mais informações"** → **"Executar assim mesmo"**.
-Isso é normal para scripts baixados da internet.
-</details>
-
-<details>
-<summary><strong>🪟 Windows: "adb não é reconhecido"</strong></summary>
-
-Execute o script novamente — ele oferece baixar e instalar o ADB automaticamente.
-</details>
 
 <details>
 <summary><strong>📱 Celular não aparece / não é reconhecido</strong></summary>
@@ -220,24 +127,20 @@ No Windows, alguns celulares precisam de driver extra para serem reconhecidos:
 
 ```
 📁 apk-installer/
-├── 📄 README.md              ← você está aqui
-├── 📁 .github/workflows/    ← CI para gerar o DMG automaticamente
-├── 📁 desktop-app/          ← app Electron (versão recomendada)
-│   ├── 📁 src/
-│   │   ├── 🎨 styles.css
-│   │   ├── 📄 index.html
-│   │   ├── ⚡ renderer.js
-│   │   ├── 🔧 main.js
-│   │   └── 🔗 preload.js
-│   ├── 📁 assets/
-│   │   └── 🖼️ icon.icns
-│   └── 📄 package.json
-├── 📁 mac/
-│   ├── 🔧 install-apk.sh     ← script para macOS
-│   └── 📖 GUIA.md
-└── 📁 windows/
-    ├── 🔧 install-apk.bat    ← script para Windows
-    └── 📖 GUIA.md
+├── 📄 README.md
+├── 📁 .github/workflows/     ← CI para gerar DMG e EXE
+└── 📁 desktop-app/           ← app Electron
+    ├── 📁 src/
+    │   ├── 🎨 styles.css
+    │   ├── 📄 index.html
+    │   ├── ⚡ renderer.js
+    │   ├── 🔧 main.js
+    │   └── 🔗 preload.js
+    ├── 📁 assets/
+    │   └── 🖼️ icon.png
+    ├── 📁 scripts/
+    │   └── 🔧 afterPack.js
+    └── 📄 package.json
 ```
 
 ---

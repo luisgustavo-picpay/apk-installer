@@ -44,15 +44,27 @@ function getCommonAdbPaths() {
       '/usr/local/share/android-commandlinetools/platform-tools',
       '/opt/homebrew/bin',
       '/usr/local/bin',
+      '/opt/homebrew/Caskroom/android-platform-tools/latest/platform-tools',
     ];
   }
   // Windows
   return [
     path.join(process.env.LOCALAPPDATA || '', 'Android/Sdk/platform-tools'),
     path.join(home, 'AppData/Local/Android/Sdk/platform-tools'),
+    path.join(process.env.LOCALAPPDATA || '', 'Android/platform-tools'),
     'C:\\Android\\platform-tools',
     'C:\\android-sdk\\platform-tools',
   ];
+}
+
+// Ensure common macOS paths are in process.env.PATH for packaged apps
+if (process.platform === 'darwin') {
+  const extraPaths = ['/opt/homebrew/bin', '/usr/local/bin', '/opt/homebrew/sbin', '/usr/local/sbin'];
+  const currentPath = process.env.PATH || '';
+  const missing = extraPaths.filter(p => !currentPath.includes(p));
+  if (missing.length) {
+    process.env.PATH = [...missing, currentPath].join(':');
+  }
 }
 
 function findAdb() {
@@ -106,21 +118,101 @@ ipcMain.handle('check-adb', async () => {
 
 ipcMain.handle('install-adb', async () => {
   if (process.platform === 'darwin') {
-    return new Promise((resolve) => {
-      const child = spawn('brew', ['install', '--cask', 'android-platform-tools'], {
-        shell: true,
+    // Find brew in common locations (PATH may be minimal in packaged apps)
+    const brewPath = await new Promise((resolve) => {
+      const candidates = ['/opt/homebrew/bin/brew', '/usr/local/bin/brew'];
+      for (const b of candidates) {
+        if (fs.existsSync(b)) { resolve(b); return; }
+      }
+      // Fallback to which
+      exec('which brew', (err, stdout) => {
+        resolve(!err && stdout.trim() ? stdout.trim() : null);
       });
-      let output = '';
-      child.stdout.on('data', (d) => (output += d.toString()));
-      child.stderr.on('data', (d) => (output += d.toString()));
-      child.on('close', async (code) => {
-        const adbPath = await findAdb();
-        resolve({
-          success: !!adbPath,
-          message: adbPath ? 'ADB instalado com sucesso!' : 'Falha na instalação. Tente manualmente.',
-          output,
+    });
+
+    if (brewPath) {
+      return new Promise((resolve) => {
+        const child = spawn(brewPath, ['install', '--cask', 'android-platform-tools'], {
+          env: { ...process.env },
+        });
+        let output = '';
+        child.stdout.on('data', (d) => (output += d.toString()));
+        child.stderr.on('data', (d) => (output += d.toString()));
+        child.on('error', (err) => {
+          resolve({
+            success: false,
+            message: `Erro ao executar brew: ${err.message}`,
+            output,
+          });
+        });
+        child.on('close', async (code) => {
+          const adbPath = await findAdb();
+          resolve({
+            success: !!adbPath,
+            message: adbPath
+              ? 'ADB instalado com sucesso via Homebrew!'
+              : `Homebrew retornou código ${code}. Tente no Terminal: brew install --cask android-platform-tools`,
+            output,
+          });
         });
       });
+    }
+
+    // No Homebrew — download directly from Google
+    const url = 'https://dl.google.com/android/repository/platform-tools-latest-darwin.zip';
+    const tmpDir = path.join(os.tmpdir(), 'adb-install');
+    const zipPath = path.join(tmpDir, 'platform-tools.zip');
+    const installDir = path.join(os.homedir(), 'Library', 'Android', 'sdk', 'platform-tools');
+
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    if (!fs.existsSync(installDir)) fs.mkdirSync(installDir, { recursive: true });
+
+    return new Promise((resolve) => {
+      const file = fs.createWriteStream(zipPath);
+      const doDownload = (downloadUrl) => {
+        https.get(downloadUrl, (res) => {
+          if (res.statusCode === 302 || res.statusCode === 301) {
+            doDownload(res.headers.location);
+            return;
+          }
+          if (res.statusCode !== 200) {
+            resolve({ success: false, message: `Download falhou (HTTP ${res.statusCode}).`, output: '' });
+            return;
+          }
+          res.pipe(file);
+          file.on('finish', () => {
+            file.close();
+            // Unzip
+            exec(`unzip -o "${zipPath}" -d "${tmpDir}"`, (unzipErr, unzipOut, unzipStderr) => {
+              if (unzipErr) {
+                resolve({ success: false, message: 'Falha ao descompactar.', output: unzipStderr || unzipErr.message });
+                return;
+              }
+              // Copy to final location
+              exec(`cp -R "${path.join(tmpDir, 'platform-tools')}/." "${installDir}/"`, async (cpErr) => {
+                if (cpErr) {
+                  resolve({ success: false, message: 'Falha ao copiar arquivos.', output: cpErr.message });
+                  return;
+                }
+                // Make adb executable
+                exec(`chmod +x "${path.join(installDir, 'adb')}"`, async () => {
+                  const adbPath = await findAdb();
+                  resolve({
+                    success: !!adbPath,
+                    message: adbPath
+                      ? 'ADB instalado com sucesso (download direto)!'
+                      : `Arquivo copiado para ${installDir} mas ADB não encontrado no PATH.`,
+                    output: unzipOut || '',
+                  });
+                });
+              });
+            });
+          });
+        }).on('error', (e) => {
+          resolve({ success: false, message: `Erro no download: ${e.message}`, output: '' });
+        });
+      };
+      doDownload(url);
     });
   }
 
@@ -136,35 +228,44 @@ ipcMain.handle('install-adb', async () => {
 
     return new Promise((resolve) => {
       const file = fs.createWriteStream(zipPath);
-      https.get(url, (res) => {
-        if (res.statusCode === 302 || res.statusCode === 301) {
-          https.get(res.headers.location, (res2) => {
-            res2.pipe(file);
-            file.on('finish', () => {
-              file.close();
-              extractAndFinish();
-            });
-          });
-        } else {
+      const doDownload = (downloadUrl) => {
+        https.get(downloadUrl, (res) => {
+          if (res.statusCode === 302 || res.statusCode === 301) {
+            doDownload(res.headers.location);
+            return;
+          }
+          if (res.statusCode !== 200) {
+            resolve({ success: false, message: `Download falhou (HTTP ${res.statusCode}).`, output: '' });
+            return;
+          }
           res.pipe(file);
           file.on('finish', () => {
             file.close();
             extractAndFinish();
           });
-        }
-      }).on('error', () => resolve({ success: false, message: 'Falha no download.' }));
+        }).on('error', (e) => resolve({ success: false, message: `Erro no download: ${e.message}`, output: '' }));
+      };
+      doDownload(url);
 
       function extractAndFinish() {
         exec(
           `powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${tmpDir}' -Force"`,
-          async () => {
-            // Copy files
-            exec(`xcopy /E /Y /Q "${path.join(tmpDir, 'platform-tools', '*')}" "${installDir}\\"`, async () => {
+          async (zipErr, zipOut, zipStderr) => {
+            if (zipErr) {
+              resolve({ success: false, message: 'Falha ao descompactar.', output: zipStderr || zipErr.message });
+              return;
+            }
+            exec(`xcopy /E /Y /Q "${path.join(tmpDir, 'platform-tools', '*')}" "${installDir}\\"`, async (cpErr, cpOut, cpStderr) => {
+              if (cpErr) {
+                resolve({ success: false, message: 'Falha ao copiar arquivos.', output: cpStderr || cpErr.message });
+                return;
+              }
               process.env.PATH = `${installDir};${process.env.PATH}`;
               const adbPath = await findAdb();
               resolve({
                 success: !!adbPath,
-                message: adbPath ? 'ADB instalado com sucesso!' : 'Falha na instalação.',
+                message: adbPath ? 'ADB instalado com sucesso!' : `Arquivo copiado para ${installDir} mas ADB não encontrado.`,
+                output: cpOut || '',
               });
             });
           }
@@ -297,6 +398,18 @@ function parseInstallError(output) {
       title: 'Instalação bloqueada',
       message: 'O dispositivo está bloqueando instalações de fontes externas.',
       tip: 'No celular, vá em Configurações > Segurança e ative "Fontes desconhecidas" ou "Instalar apps desconhecidos".' },
+    { match: 'INSTALL_PARSE_FAILED_NOT_APK', code: 'PARSE_FAILED_NOT_APK',
+      title: 'Arquivo APK corrompido ou inválido',
+      message: 'O Android não conseguiu ler o arquivo APK.',
+      tip: 'O arquivo pode estar corrompido ou não é um APK válido. Tente baixar o APK novamente. Se veio de uma URL, verifique se o link é de download direto.' },
+    { match: 'INSTALL_PARSE_FAILED_UNEXPECTED_EXCEPTION', code: 'PARSE_FAILED',
+      title: 'Erro ao processar o APK',
+      message: 'O Android encontrou um erro inesperado ao processar o arquivo.',
+      tip: 'O arquivo APK pode estar corrompido. Tente baixar novamente ou peça um novo arquivo ao desenvolvedor.' },
+    { match: "filename doesn't end .apk", code: 'INVALID_FILENAME',
+      title: 'Nome do arquivo inválido',
+      message: 'O ADB não reconheceu o arquivo como APK.',
+      tip: 'Selecione o APK novamente. Se o problema persistir, renomeie o arquivo para terminar em .apk e tente de novo.' },
   ];
 
   for (const e of errors) {
@@ -387,6 +500,10 @@ ipcMain.handle('uninstall-app', async (_event, { deviceId, packageName }) => {
 ipcMain.handle('install-apk', async (_event, { deviceId, apkPath }) => {
   const adbPath = await findAdb();
   if (!adbPath) return { success: false, code: 'NO_ADB', title: 'ADB não encontrado', error: 'O ADB não está instalado.', tip: 'Volte ao passo 1 e instale o ADB.' };
+
+  if (!apkPath) return { success: false, code: 'NO_APK_PATH', title: 'Caminho do APK inválido', error: 'O caminho do arquivo APK não foi definido (undefined).', tip: 'Selecione o APK novamente arrastando o arquivo ou clicando para escolher.' };
+
+  if (!fs.existsSync(apkPath)) return { success: false, code: 'APK_NOT_FOUND', title: 'Arquivo APK não encontrado', error: `O arquivo não existe: ${apkPath}`, tip: 'O arquivo pode ter sido movido ou excluído. Selecione o APK novamente.' };
 
   try {
     const output = await new Promise((resolve, reject) => {

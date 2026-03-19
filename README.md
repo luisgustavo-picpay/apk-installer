@@ -12,11 +12,15 @@ Script interativo que facilita a instalação de aplicativos Android (`.apk`) di
 
 ## �️ App Desktop (Recomendado)
 
-O jeito mais fácil de usar! Baixe o app, arraste para Applications e pronto.
+O jeito mais fácil de usar! Baixe o app para seu sistema e instale.
 
 | Sistema | Download |
 |:---:|:---:|
 | 🍎 **macOS** (Intel + Apple Silicon) | [⬇️ Baixar DMG](../../releases/latest) |
+| 🪟 **Windows** (64-bit) | [⬇️ Baixar EXE](../../releases/latest) |
+
+<details>
+<summary>🍎 <strong>Instruções para macOS</strong></summary>
 
 > 💡 O download pode vir como `.dmg` ou `.zip`. Se vier como `.zip`, clique duas vezes — ele extrai o `.dmg` automaticamente. Depois abra o `.dmg` e arraste o **APK Installer** para a pasta **Applications**.
 >
@@ -37,6 +41,21 @@ O jeito mais fácil de usar! Baixe o app, arraste para Applications e pronto.
 > xattr -cr "/Applications/APK Installer.app"
 > ```
 > 4. Abra o app normalmente — agora vai funcionar! ✅
+
+</details>
+
+<details>
+<summary>🪟 <strong>Instruções para Windows</strong></summary>
+
+> 💡 Baixe o arquivo `.exe` e execute. O instalador é automático — instala e abre o app.
+>
+> ⚠️ **SmartScreen do Windows:** como o app não tem assinatura digital, o Windows pode mostrar "O Windows protegeu seu computador". Para continuar:
+> 1. Clique em **"Mais informações"**
+> 2. Clique em **"Executar assim mesmo"**
+>
+> Isso acontece apenas na primeira execução. Depois disso o app abre normalmente.
+
+</details>
 
 ---
 

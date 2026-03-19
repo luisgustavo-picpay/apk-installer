@@ -32,8 +32,10 @@
       ]
     },
     "win": {
-      "target": ["nsis"],
-      "icon": "assets/icon.ico"
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "assets/icon.png"
     },
     "dmg": {
       "title": "APK Installer",
@@ -44,7 +46,10 @@
     },
     "nsis": {
       "oneClick": true,
-      "perMachine": false
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": true,
+      "shortcutName": "APK Installer"
     },
     "files": [
       "src/**/*",

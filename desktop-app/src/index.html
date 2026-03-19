@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APK Installer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <div class="header">
+      <h1>📱 APK Installer</h1>
+      <p>Instale aplicativos Android diretamente do seu computador</p>
+    </div>
+
+    <!-- Stepper -->
+    <div class="stepper">
+      <div class="step-dot active" data-step="0"></div>
+      <div class="step-dot" data-step="1"></div>
+      <div class="step-dot" data-step="2"></div>
+      <div class="step-dot" data-step="3"></div>
+    </div>
+
+    <!-- Step 0: Dependency Dashboard -->
+    <div class="step-panel active" id="step-0">
+      <div style="width:100%; max-width:480px; text-align:center;">
+        <div style="font-size:32px; margin-bottom:8px;">⚙️</div>
+        <h2 style="font-size:17px; font-weight:600; margin-bottom:4px;">Dependências do Sistema</h2>
+        <p style="font-size:12px; color:var(--text-dim); margin-bottom:20px;">Verificando o que está instalado no seu computador</p>
+      </div>
+
+      <div style="width:100%; max-width:480px; display:flex; flex-direction:column; gap:10px;" id="dep-list">
+        <!-- ADB -->
+        <div class="dep-row" id="dep-adb">
+          <div class="dep-icon">📟</div>
+          <div class="dep-info">
+            <div class="dep-name">ADB (Android Debug Bridge)</div>
+            <div class="dep-desc" id="dep-adb-desc">Ferramenta para comunicação com dispositivos Android</div>
+          </div>
+          <div class="dep-status" id="dep-adb-status"><div class="spinner" style="width:20px;height:20px;border-width:2px;"></div></div>
+        </div>
+        <!-- ADB Server -->
+        <div class="dep-row" id="dep-server">
+          <div class="dep-icon">🔌</div>
+          <div class="dep-info">
+            <div class="dep-name">ADB Server</div>
+            <div class="dep-desc" id="dep-server-desc">Serviço de conexão com dispositivos</div>
+          </div>
+          <div class="dep-status" id="dep-server-status"><span style="color:var(--text-dim); font-size:12px;">aguardando</span></div>
+        </div>
+        <!-- Platform -->
+        <div class="dep-row" id="dep-platform">
+          <div class="dep-icon">💻</div>
+          <div class="dep-info">
+            <div class="dep-name">Sistema Operacional</div>
+            <div class="dep-desc" id="dep-platform-desc">Detectando plataforma...</div>
+          </div>
+          <div class="dep-status" id="dep-platform-status"><span style="color:var(--text-dim); font-size:12px;">—</span></div>
+        </div>
+      </div>
+
+      <div id="dep-install-box" style="display:none; width:100%; max-width:480px; margin-top:8px;">
+        <div class="help-box">
+          <strong>⚠️ ADB não encontrado</strong><br>
+          O ADB é necessário para instalar apps. Clique abaixo para instalar automaticamente.
+        </div>
+      </div>
+
+      <div id="adb-actions" style="display:none;" class="actions"></div>
+    </div>
+
+    <!-- Step 1: Select APK -->
+    <div class="step-panel" id="step-1">
+      <!-- Main selection view -->
+      <div id="apk-select-view" style="display:contents;">
+        <div class="back-row">
+          <button class="btn-back" onclick="goToStep(0)">← Voltar</button>
+        </div>
+
+        <div class="library-btn" onclick="showHistory()" id="btn-show-history">
+          <div class="lb-icon">📚</div>
+          <div class="lb-info">
+            <div class="lb-title">Biblioteca de APKs</div>
+            <div class="lb-desc">Acesse versões anteriores e APKs baixados</div>
+          </div>
+          <div class="lb-count" id="history-count" style="display:none;">0</div>
+          <div class="lb-arrow">→</div>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <div class="dropzone-icon">📦</div>
+          <h3>Arraste o arquivo .apk aqui</h3>
+          <p>ou clique para selecionar</p>
+        </div>
+
+        <div id="apk-info" style="display:none;"></div>
+
+        <div id="url-section" style="width:100%; max-width:480px;">
+          <div class="separator">ou cole um link de download</div>
+          <div style="display:flex; gap:8px; margin-top:12px;">
+            <input type="text" class="url-input" id="url-input" placeholder="https://exemplo.com/app.apk">
+            <button class="btn btn-primary" onclick="downloadFromUrl()" id="btn-download" style="white-space:nowrap;">⬇️ Baixar</button>
+          </div>
+          <div id="download-status" style="display:none; width:100%; margin-top:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim); margin-bottom:4px;">
+              <span id="download-label">Baixando...</span>
+              <span id="download-percent">0%</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="download-bar" style="width:0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="apk-meta" style="display:none;" class="meta-fields">
+          <div class="meta-field">
+            <label>Nome personalizado (opcional)</label>
+            <input type="text" id="apk-custom-name" placeholder="Ex: PicPay v11.2 - Hotfix login">
+          </div>
+          <div class="meta-field">
+            <label>Descrição (opcional)</label>
+            <textarea id="apk-description" rows="2" placeholder="Ex: Versão com correção do bug de login na tela principal"></textarea>
+          </div>
+        </div>
+
+        <div id="apk-actions" style="display:none;" class="actions">
+          <button class="btn btn-secondary" onclick="resetApk()">Trocar arquivo</button>
+          <button class="btn btn-primary" onclick="goToStep(2)">Continuar →</button>
+        </div>
+      </div>
+
+      <!-- History view (hidden) -->
+      <div id="apk-history-view" style="display:none; width:100%; max-width:480px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <h2 style="font-size:17px; font-weight:600;">📚 APKs salvos</h2>
+          <button class="btn-link" onclick="hideHistory()">← Voltar</button>
+        </div>
+        <div id="history-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+        <div id="history-empty" style="display:none; text-align:center; color:var(--text-dim); padding:40px 0;">
+          <div style="font-size:32px; margin-bottom:8px;">📭</div>
+          Nenhum APK salvo ainda.<br>
+          <span style="font-size:12px;">APKs baixados por URL aparecerão aqui.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Devices -->
+    <div class="step-panel" id="step-2">
+      <div class="back-row">
+        <button class="btn-back" onclick="goToStep(1)">← Voltar</button>
+      </div>
+      <div class="card" id="device-loading">
+        <div class="card-icon">📡</div>
+        <h2>Procurando dispositivos...</h2>
+        <p>Conecte seu celular Android via USB</p>
+        <div style="margin-top: 16px;">
+          <div class="spinner" style="margin: 0 auto;"></div>
+        </div>
+      </div>
+      <div id="device-results" style="display:none; width:100%; max-width:480px;">
+        <div style="text-align:center; margin-bottom: 12px;">
+          <span style="font-size:13px; color: var(--text-dim);" id="device-count-label"></span>
+        </div>
+        <div class="scroll-area">
+          <div class="device-list" id="device-list"></div>
+        </div>
+      </div>
+      <div id="no-devices" style="display:none; width:100%; max-width:480px;">
+        <div class="card">
+          <div class="card-icon">😕</div>
+          <h2>Nenhum dispositivo encontrado</h2>
+          <p>Verifique se o celular está conectado e a Depuração USB ativada</p>
+        </div>
+        <div class="help-box" style="margin-top: 12px;">
+          <strong>📱 Como ativar a Depuração USB:</strong><br>
+          1. Configurações → Sobre o telefone<br>
+          2. Toque 7x em "Número da versão"<br>
+          3. Volte e procure "Opções do desenvolvedor"<br>
+          4. Ative "Depuração USB"<br>
+          5. Conecte o cabo USB e aceite a autorização
+        </div>
+      </div>
+      <div id="device-actions" style="display:none;" class="actions">
+        <button class="btn btn-secondary" onclick="refreshDevices()">🔄 Atualizar</button>
+        <button class="btn btn-primary" id="btn-install" disabled onclick="goToStep(3)">Instalar →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Installing / Result -->
+    <div class="step-panel" id="step-3">
+      <div id="installing-view">
+        <div class="card">
+          <div class="card-icon">🚀</div>
+          <h2>Instalando aplicativo...</h2>
+          <p id="installing-details">Aguarde, isso pode levar alguns segundos</p>
+          <div style="margin-top: 20px;">
+            <div class="spinner" style="margin: 0 auto;"></div>
+          </div>
+        </div>
+      </div>
+      <div id="result-view" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- Edit overlay (outside .app for full-screen positioning) -->
+  <div id="edit-overlay">
+    <div class="edit-modal">
+      <h3>✏️ Editar APK</h3>
+      <div style="font-size:12px; color:var(--text-dim); margin-bottom:16px; font-family:monospace;" id="edit-filename"></div>
+      <div class="meta-fields">
+        <div class="meta-field">
+          <label>Nome personalizado</label>
+          <input type="text" id="edit-custom-name" placeholder="Ex: PicPay v11.2 - Hotfix login">
+        </div>
+        <div class="meta-field">
+          <label>Descrição</label>
+          <textarea id="edit-description" rows="3" placeholder="Ex: Versão com correção do bug de login"></textarea>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:16px;">
+        <button class="btn btn-secondary" onclick="closeEditOverlay()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveEditOverlay()">✔ Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

@@ -18,7 +18,7 @@ O jeito mais fácil de usar! Baixe o app, arraste para Applications e pronto.
 |:---:|:---:|
 | 🍎 **macOS** (Intel + Apple Silicon) | [⬇️ Baixar DMG](../../releases/latest) |
 
-> 💡 Após baixar o `.dmg`, abra e arraste o **APK Installer** para a pasta **Applications**.
+> 💡 O download pode vir como `.dmg` ou `.zip`. Se vier como `.zip`, clique duas vezes — ele extrai o `.dmg` automaticamente. Depois abra o `.dmg` e arraste o **APK Installer** para a pasta **Applications**.
 >
 > ⚠️ **Primeira abertura no macOS:** como o app não é assinado com certificado Apple, o macOS pode bloquear a abertura. Use uma das opções abaixo:
 >

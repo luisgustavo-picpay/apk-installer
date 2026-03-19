@@ -398,6 +398,18 @@ function parseInstallError(output) {
       title: 'Instalação bloqueada',
       message: 'O dispositivo está bloqueando instalações de fontes externas.',
       tip: 'No celular, vá em Configurações > Segurança e ative "Fontes desconhecidas" ou "Instalar apps desconhecidos".' },
+    { match: 'INSTALL_PARSE_FAILED_NOT_APK', code: 'PARSE_FAILED_NOT_APK',
+      title: 'Arquivo APK corrompido ou inválido',
+      message: 'O Android não conseguiu ler o arquivo APK.',
+      tip: 'O arquivo pode estar corrompido ou não é um APK válido. Tente baixar o APK novamente. Se veio de uma URL, verifique se o link é de download direto.' },
+    { match: 'INSTALL_PARSE_FAILED_UNEXPECTED_EXCEPTION', code: 'PARSE_FAILED',
+      title: 'Erro ao processar o APK',
+      message: 'O Android encontrou um erro inesperado ao processar o arquivo.',
+      tip: 'O arquivo APK pode estar corrompido. Tente baixar novamente ou peça um novo arquivo ao desenvolvedor.' },
+    { match: "filename doesn't end .apk", code: 'INVALID_FILENAME',
+      title: 'Nome do arquivo inválido',
+      message: 'O ADB não reconheceu o arquivo como APK.',
+      tip: 'Selecione o APK novamente. Se o problema persistir, renomeie o arquivo para terminar em .apk e tente de novo.' },
   ];
 
   for (const e of errors) {
@@ -488,6 +500,10 @@ ipcMain.handle('uninstall-app', async (_event, { deviceId, packageName }) => {
 ipcMain.handle('install-apk', async (_event, { deviceId, apkPath }) => {
   const adbPath = await findAdb();
   if (!adbPath) return { success: false, code: 'NO_ADB', title: 'ADB não encontrado', error: 'O ADB não está instalado.', tip: 'Volte ao passo 1 e instale o ADB.' };
+
+  if (!apkPath) return { success: false, code: 'NO_APK_PATH', title: 'Caminho do APK inválido', error: 'O caminho do arquivo APK não foi definido (undefined).', tip: 'Selecione o APK novamente arrastando o arquivo ou clicando para escolher.' };
+
+  if (!fs.existsSync(apkPath)) return { success: false, code: 'APK_NOT_FOUND', title: 'Arquivo APK não encontrado', error: `O arquivo não existe: ${apkPath}`, tip: 'O arquivo pode ter sido movido ou excluído. Selecione o APK novamente.' };
 
   try {
     const output = await new Promise((resolve, reject) => {

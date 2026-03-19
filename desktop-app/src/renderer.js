@@ -128,8 +128,14 @@ dropzone.addEventListener('drop', async (e) => {
   dropzone.classList.remove('dragover');
   const file = e.dataTransfer.files[0];
   if (file && file.name.endsWith('.apk')) {
+    // file.path may be undefined in sandboxed/packaged Electron apps
+    const filePath = file.path;
+    if (!filePath) {
+      alert('Não foi possível obter o caminho do arquivo via arrastar.\nUse o botão "Clique aqui" para selecionar o APK.');
+      return;
+    }
     setApk({
-      path: file.path,
+      path: filePath,
       name: file.name,
       size: (file.size / (1024 * 1024)).toFixed(1) + ' MB',
       source: 'file',

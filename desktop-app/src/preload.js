@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
   checkAdb: () => ipcRenderer.invoke('check-adb'),
@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('api', {
   removeFromHistory: (filePath) => ipcRenderer.invoke('remove-from-history', { filePath }),
   deleteApkFile: (filePath) => ipcRenderer.invoke('delete-apk-file', { filePath }),
   downloadApk: (url) => ipcRenderer.invoke('download-apk', { url }),
+  getPathForFile: (file) => webUtils.getPathForFile(file),
   onDownloadProgress: (callback) => {
     ipcRenderer.on('download-progress', (_e, data) => callback(data));
   },

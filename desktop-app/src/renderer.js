@@ -95,7 +95,11 @@ async function doInstallAdb() {
     await checkDeps();
   } else {
     setDepStatus('adb', false, 'Falha na instalação — ' + result.message);
-    installBox.innerHTML = `<div class="help-box"><strong>❌ Instalação falhou</strong><br>${result.message}<br>Tente instalar manualmente.</div>`;
+    const outputLog = result.output ? `<pre style="max-height:120px;overflow:auto;background:#1a1a24;padding:8px;border-radius:6px;font-size:11px;color:#aaa;margin-top:8px;text-align:left;white-space:pre-wrap;">${result.output}</pre>` : '';
+    installBox.innerHTML = `<div class="help-box"><strong>❌ Instalação falhou</strong><br>${result.message}${outputLog}<br><br><strong>💡 Instalar manualmente:</strong><br>
+      • <strong>Mac:</strong> Abra o Terminal e cole: <code>brew install --cask android-platform-tools</code><br>
+      • <strong>Windows:</strong> Baixe de <a href="#" onclick="require('electron').shell.openExternal('https://developer.android.com/tools/releases/platform-tools')">developer.android.com</a><br>
+      • Ou instale o <strong>Android Studio</strong> (já inclui o ADB)</div>`;
     installBox.style.display = 'block';
     actions.innerHTML = '<button class="btn btn-secondary" onclick="doInstallAdb()">Tentar novamente</button>';
     actions.style.display = 'flex';

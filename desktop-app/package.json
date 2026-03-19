@@ -1,0 +1,46 @@
+{
+  "name": "apk-installer",
+  "version": "2.0.0",
+  "description": "Instalador de APK no Android — Interface gráfica",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --mac dmg",
+    "build:win": "electron-builder --win nsis",
+    "build:all": "electron-builder --mac dmg --win nsis"
+  },
+  "author": "Luis Gustavo",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.apkinstaller.app",
+    "productName": "APK Installer",
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "assets/icon.icns",
+      "target": ["dmg"]
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icon.ico"
+    },
+    "dmg": {
+      "title": "APK Installer",
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*"
+    ]
+  }
+}

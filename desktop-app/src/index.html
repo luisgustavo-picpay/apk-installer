@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APK Installer</title>
+  <style>
+    /* ── Reset & Base ────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f14;
+      --bg-card: #1a1a24;
+      --bg-hover: #22222f;
+      --border: #2a2a3a;
+      --text: #e4e4ed;
+      --text-dim: #8888a4;
+      --accent: #6c5ce7;
+      --accent-glow: rgba(108, 92, 231, 0.25);
+      --green: #00d68f;
+      --green-glow: rgba(0, 214, 143, 0.2);
+      --red: #ff6b6b;
+      --red-glow: rgba(255, 107, 107, 0.2);
+      --yellow: #ffd93d;
+      --radius: 14px;
+      --radius-sm: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+      -webkit-app-region: drag;
+      user-select: none;
+    }
+
+    /* ── Layout ──────────────────────────────────────── */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 52px 28px 28px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .header p {
+      color: var(--text-dim);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    /* ── Stepper ─────────────────────────────────────── */
+    .stepper {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 20px 0 24px;
+      -webkit-app-region: no-drag;
+    }
+
+    .step-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: all 0.4s ease;
+    }
+
+    .step-dot.active {
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+      transform: scale(1.2);
+    }
+
+    .step-dot.done {
+      background: var(--green);
+    }
+
+    /* ── Steps (panels) ──────────────────────────────── */
+    .step-panel {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      animation: fadeIn 0.35s ease;
+      -webkit-app-region: no-drag;
+    }
+
+    .step-panel.active { display: flex; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Cards ────────────────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+    }
+
+    .card-icon {
+      font-size: 44px;
+      margin-bottom: 12px;
+    }
+
+    .card h2 {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .card p {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    /* ── Buttons ──────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 28px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      -webkit-app-region: no-drag;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: #7c6ef0;
+      box-shadow: 0 4px 20px var(--accent-glow);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--bg-hover);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .btn-success {
+      background: var(--green);
+      color: #0f0f14;
+    }
+    .btn-success:hover {
+      box-shadow: 0 4px 20px var(--green-glow);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* ── Status badge ────────────────────────────────── */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .status-ok {
+      background: var(--green-glow);
+      color: var(--green);
+      border: 1px solid rgba(0, 214, 143, 0.3);
+    }
+
+    .status-err {
+      background: var(--red-glow);
+      color: var(--red);
+      border: 1px solid rgba(255, 107, 107, 0.3);
+    }
+
+    .status-warn {
+      background: rgba(255, 217, 61, 0.12);
+      color: var(--yellow);
+      border: 1px solid rgba(255, 217, 61, 0.3);
+    }
+
+    /* ── Dropzone ────────────────────────────────────── */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(108, 92, 231, 0.06);
+    }
+
+    .dropzone-icon { font-size: 40px; margin-bottom: 10px; }
+    .dropzone h3 { font-size: 15px; font-weight: 600; }
+    .dropzone p { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+    .apk-selected {
+      background: var(--bg-card);
+      border: 1px solid var(--green);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .apk-selected .icon { font-size: 30px; }
+    .apk-selected .info { text-align: left; flex: 1; }
+    .apk-selected .info .name { font-size: 14px; font-weight: 600; }
+    .apk-selected .info .size { font-size: 12px; color: var(--text-dim); }
+
+    /* ── Device list ─────────────────────────────────── */
+    .device-list {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .device-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .device-item:hover {
+      border-color: var(--accent);
+      background: var(--bg-hover);
+    }
+
+    .device-item.selected {
+      border-color: var(--accent);
+      background: rgba(108, 92, 231, 0.08);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+
+    .device-item .icon { font-size: 26px; }
+    .device-item .info { flex: 1; text-align: left; }
+    .device-item .info .name { font-size: 14px; font-weight: 600; }
+    .device-item .info .id { font-size: 11px; color: var(--text-dim); font-family: 'SF Mono', 'Cascadia Code', monospace; }
+    .device-item .check { font-size: 18px; opacity: 0; transition: opacity 0.2s; }
+    .device-item.selected .check { opacity: 1; }
+
+    /* ── Spinner ──────────────────────────────────────── */
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result ───────────────────────────────────────── */
+    .result-icon { font-size: 64px; }
+
+    .result-card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 28px;
+      text-align: center;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .result-card.success { border: 1px solid rgba(0,214,143,0.3); }
+    .result-card.error { border: 1px solid rgba(255,107,107,0.3); }
+
+    .result-card h2 { margin: 12px 0 8px; font-size: 20px; }
+    .result-card p { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+    /* ── Help text ────────────────────────────────────── */
+    .help-box {
+      background: rgba(255, 217, 61, 0.06);
+      border: 1px solid rgba(255, 217, 61, 0.2);
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      width: 100%;
+      max-width: 480px;
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      text-align: left;
+    }
+
+    .help-box strong { color: var(--yellow); }
+
+    /* ── Footer actions ──────────────────────────────── */
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    /* ── Scrollable device area ──────────────────────── */
+    .scroll-area {
+      max-height: 220px;
+      overflow-y: auto;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .scroll-area::-webkit-scrollbar { width: 6px; }
+    .scroll-area::-webkit-scrollbar-track { background: transparent; }
+    .scroll-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <div class="header">
+      <h1>📱 APK Installer</h1>
+      <p>Instale aplicativos Android diretamente do seu computador</p>
+    </div>
+
+    <!-- Stepper -->
+    <div class="stepper">
+      <div class="step-dot active" data-step="0"></div>
+      <div class="step-dot" data-step="1"></div>
+      <div class="step-dot" data-step="2"></div>
+      <div class="step-dot" data-step="3"></div>
+    </div>
+
+    <!-- Step 0: Check ADB -->
+    <div class="step-panel active" id="step-0">
+      <div class="card">
+        <div class="card-icon">🔍</div>
+        <h2>Verificando dependências...</h2>
+        <p>Checando se o ADB está instalado no sistema</p>
+        <div style="margin-top: 20px;">
+          <div class="spinner" style="margin: 0 auto;" id="adb-spinner"></div>
+          <div id="adb-status" style="margin-top: 16px;"></div>
+        </div>
+      </div>
+      <div id="adb-actions" style="display:none;" class="actions"></div>
+    </div>
+
+    <!-- Step 1: Select APK -->
+    <div class="step-panel" id="step-1">
+      <div class="dropzone" id="dropzone">
+        <div class="dropzone-icon">📦</div>
+        <h3>Arraste o arquivo .apk aqui</h3>
+        <p>ou clique para selecionar</p>
+      </div>
+      <div id="apk-info" style="display:none;"></div>
+      <div id="apk-actions" style="display:none;" class="actions">
+        <button class="btn btn-secondary" onclick="resetApk()">Trocar arquivo</button>
+        <button class="btn btn-primary" onclick="goToStep(2)">Continuar →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Devices -->
+    <div class="step-panel" id="step-2">
+      <div class="card" id="device-loading">
+        <div class="card-icon">📡</div>
+        <h2>Procurando dispositivos...</h2>
+        <p>Conecte seu celular Android via USB</p>
+        <div style="margin-top: 16px;">
+          <div class="spinner" style="margin: 0 auto;"></div>
+        </div>
+      </div>
+      <div id="device-results" style="display:none; width:100%; max-width:480px;">
+        <div style="text-align:center; margin-bottom: 12px;">
+          <span style="font-size:13px; color: var(--text-dim);" id="device-count-label"></span>
+        </div>
+        <div class="scroll-area">
+          <div class="device-list" id="device-list"></div>
+        </div>
+      </div>
+      <div id="no-devices" style="display:none; width:100%; max-width:480px;">
+        <div class="card">
+          <div class="card-icon">😕</div>
+          <h2>Nenhum dispositivo encontrado</h2>
+          <p>Verifique se o celular está conectado e a Depuração USB ativada</p>
+        </div>
+        <div class="help-box" style="margin-top: 12px;">
+          <strong>📱 Como ativar a Depuração USB:</strong><br>
+          1. Configurações → Sobre o telefone<br>
+          2. Toque 7x em "Número da versão"<br>
+          3. Volte e procure "Opções do desenvolvedor"<br>
+          4. Ative "Depuração USB"<br>
+          5. Conecte o cabo USB e aceite a autorização
+        </div>
+      </div>
+      <div id="device-actions" style="display:none;" class="actions">
+        <button class="btn btn-secondary" onclick="refreshDevices()">🔄 Atualizar</button>
+        <button class="btn btn-primary" id="btn-install" disabled onclick="goToStep(3)">Instalar →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Installing / Result -->
+    <div class="step-panel" id="step-3">
+      <div id="installing-view">
+        <div class="card">
+          <div class="card-icon">🚀</div>
+          <h2>Instalando aplicativo...</h2>
+          <p id="installing-details">Aguarde, isso pode levar alguns segundos</p>
+          <div style="margin-top: 20px;">
+            <div class="spinner" style="margin: 0 auto;"></div>
+          </div>
+        </div>
+      </div>
+      <div id="result-view" style="display:none;"></div>
+    </div>
+  </div>
+
+  <script>
+    // ── State ───────────────────────────────────────────
+    let currentStep = 0;
+    let selectedApk = null;
+    let selectedDevice = null;
+
+    // ── Navigation ──────────────────────────────────────
+    function goToStep(n) {
+      document.querySelectorAll('.step-panel').forEach((p) => p.classList.remove('active'));
+      document.getElementById(`step-${n}`).classList.add('active');
+
+      document.querySelectorAll('.step-dot').forEach((d, i) => {
+        d.classList.remove('active');
+        d.classList.toggle('done', i < n);
+        d.classList.toggle('active', i === n);
+      });
+
+      currentStep = n;
+
+      if (n === 2) loadDevices();
+      if (n === 3) doInstall();
+    }
+
+    // ── Step 0: ADB Check ───────────────────────────────
+    async function checkAdb() {
+      const result = await window.api.checkAdb();
+      const spinner = document.getElementById('adb-spinner');
+      const status = document.getElementById('adb-status');
+      const actions = document.getElementById('adb-actions');
+
+      spinner.style.display = 'none';
+
+      if (result.installed) {
+        status.innerHTML = `
+          <span class="status-badge status-ok">✔ ADB instalado</span>
+          <p style="font-size:11px; color: var(--text-dim); margin-top:8px;">${result.version}</p>
+        `;
+        actions.innerHTML = '<button class="btn btn-primary" onclick="goToStep(1)">Continuar →</button>';
+        actions.style.display = 'flex';
+
+        // Auto-advance after 1.2s
+        setTimeout(() => goToStep(1), 1200);
+      } else {
+        status.innerHTML = '<span class="status-badge status-err">✖ ADB não encontrado</span>';
+        actions.innerHTML = `
+          <button class="btn btn-primary" onclick="doInstallAdb()">Instalar ADB automaticamente</button>
+        `;
+        actions.style.display = 'flex';
+      }
+    }
+
+    async function doInstallAdb() {
+      const actions = document.getElementById('adb-actions');
+      const status = document.getElementById('adb-status');
+      const spinner = document.getElementById('adb-spinner');
+
+      actions.style.display = 'none';
+      spinner.style.display = 'block';
+      status.innerHTML = '<p style="font-size:13px; color: var(--text-dim);">Instalando... isso pode levar alguns minutos</p>';
+
+      const result = await window.api.installAdb();
+
+      spinner.style.display = 'none';
+
+      if (result.success) {
+        status.innerHTML = '<span class="status-badge status-ok">✔ ADB instalado com sucesso!</span>';
+        actions.innerHTML = '<button class="btn btn-primary" onclick="goToStep(1)">Continuar →</button>';
+        actions.style.display = 'flex';
+        setTimeout(() => goToStep(1), 1000);
+      } else {
+        status.innerHTML = `
+          <span class="status-badge status-err">✖ Falha na instalação</span>
+          <p style="font-size:12px; color: var(--text-dim); margin-top:8px;">${result.message}</p>
+        `;
+        actions.innerHTML = '<button class="btn btn-secondary" onclick="doInstallAdb()">Tentar novamente</button>';
+        actions.style.display = 'flex';
+      }
+    }
+
+    // ── Step 1: APK Selection ───────────────────────────
+    const dropzone = document.getElementById('dropzone');
+
+    dropzone.addEventListener('click', async () => {
+      const apk = await window.api.selectApk();
+      if (apk) setApk(apk);
+    });
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file && file.name.endsWith('.apk')) {
+        setApk({
+          path: file.path,
+          name: file.name,
+          size: (file.size / (1024 * 1024)).toFixed(1) + ' MB',
+        });
+      }
+    });
+
+    function setApk(apk) {
+      selectedApk = apk;
+      dropzone.style.display = 'none';
+      const info = document.getElementById('apk-info');
+      info.style.display = 'block';
+      info.innerHTML = `
+        <div class="apk-selected">
+          <div class="icon">📦</div>
+          <div class="info">
+            <div class="name">${apk.name}</div>
+            <div class="size">${apk.size}</div>
+          </div>
+          <span style="color: var(--green); font-size: 20px;">✓</span>
+        </div>
+      `;
+      document.getElementById('apk-actions').style.display = 'flex';
+    }
+
+    function resetApk() {
+      selectedApk = null;
+      dropzone.style.display = 'block';
+      document.getElementById('apk-info').style.display = 'none';
+      document.getElementById('apk-actions').style.display = 'none';
+    }
+
+    // ── Step 2: Devices ─────────────────────────────────
+    async function loadDevices() {
+      const loading = document.getElementById('device-loading');
+      const results = document.getElementById('device-results');
+      const noDevices = document.getElementById('no-devices');
+      const actions = document.getElementById('device-actions');
+
+      loading.style.display = 'block';
+      results.style.display = 'none';
+      noDevices.style.display = 'none';
+      actions.style.display = 'none';
+      selectedDevice = null;
+      document.getElementById('btn-install').disabled = true;
+
+      const devices = await window.api.listDevices();
+
+      loading.style.display = 'none';
+
+      if (devices.length === 0) {
+        noDevices.style.display = 'block';
+        actions.innerHTML = `
+          <button class="btn btn-secondary" onclick="goToStep(1)">← Voltar</button>
+          <button class="btn btn-primary" onclick="refreshDevices()">🔄 Procurar novamente</button>
+        `;
+        actions.style.display = 'flex';
+        return;
+      }
+
+      const list = document.getElementById('device-list');
+      list.innerHTML = '';
+
+      document.getElementById('device-count-label').textContent =
+        devices.length === 1 ? '1 dispositivo encontrado' : `${devices.length} dispositivos encontrados`;
+
+      devices.forEach((d) => {
+        const item = document.createElement('div');
+        item.className = 'device-item';
+        item.innerHTML = `
+          <div class="icon">${d.id.includes('emulator') ? '💻' : '📱'}</div>
+          <div class="info">
+            <div class="name">${d.label}</div>
+            <div class="id">${d.id}</div>
+          </div>
+          <div class="check">✓</div>
+        `;
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.device-item').forEach((el) => el.classList.remove('selected'));
+          item.classList.add('selected');
+          selectedDevice = d.id;
+          document.getElementById('btn-install').disabled = false;
+        });
+        list.appendChild(item);
+      });
+
+      // Auto-select if only one device
+      if (devices.length === 1) {
+        list.children[0].click();
+      }
+
+      results.style.display = 'block';
+      actions.innerHTML = `
+        <button class="btn btn-secondary" onclick="goToStep(1)">← Voltar</button>
+        <button class="btn btn-secondary" onclick="refreshDevices()">🔄 Atualizar</button>
+        <button class="btn btn-primary" id="btn-install" ${selectedDevice ? '' : 'disabled'} onclick="goToStep(3)">Instalar →</button>
+      `;
+      actions.style.display = 'flex';
+    }
+
+    function refreshDevices() {
+      loadDevices();
+    }
+
+    // ── Step 3: Install ─────────────────────────────────
+    async function doInstall() {
+      const installView = document.getElementById('installing-view');
+      const resultView = document.getElementById('result-view');
+      const details = document.getElementById('installing-details');
+
+      installView.style.display = 'block';
+      resultView.style.display = 'none';
+
+      details.textContent = `Enviando ${selectedApk.name} para o dispositivo...`;
+
+      const result = await window.api.installApk(selectedDevice, selectedApk.path);
+
+      installView.style.display = 'none';
+      resultView.style.display = 'block';
+
+      if (result.success) {
+        resultView.innerHTML = `
+          <div class="result-card success">
+            <div class="result-icon">🎉</div>
+            <h2 style="color: var(--green);">Instalação concluída!</h2>
+            <p style="margin-top: 8px;">
+              <strong style="color: var(--text);">${selectedApk.name}</strong><br>
+              foi instalado com sucesso no dispositivo.
+            </p>
+            <p style="margin-top: 12px;">O app já deve aparecer na gaveta de apps do Android.</p>
+          </div>
+          <div class="actions" style="margin-top: 16px;">
+            <button class="btn btn-secondary" onclick="startOver()">Instalar outro APK</button>
+          </div>
+        `;
+      } else {
+        resultView.innerHTML = `
+          <div class="result-card error">
+            <div class="result-icon">😞</div>
+            <h2 style="color: var(--red);">Falha na instalação</h2>
+            <p style="margin-top: 8px;">${result.error}</p>
+          </div>
+          <div class="actions" style="margin-top: 16px;">
+            <button class="btn btn-secondary" onclick="goToStep(2)">← Voltar</button>
+            <button class="btn btn-primary" onclick="goToStep(3)">Tentar novamente</button>
+          </div>
+        `;
+      }
+    }
+
+    function startOver() {
+      selectedApk = null;
+      selectedDevice = null;
+      resetApk();
+      goToStep(1);
+    }
+
+    // ── Init ────────────────────────────────────────────
+    checkAdb();
+  </script>
+</body>
+</html>

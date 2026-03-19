@@ -308,6 +308,82 @@ function parseInstallError(output) {
   return null;
 }
 
+// ── Package name extraction ─────────────────────────────────────
+function findAapt() {
+  return new Promise((resolve) => {
+    const home = os.homedir();
+    const sdkPaths = process.platform === 'win32'
+      ? [path.join(home, 'AppData', 'Local', 'Android', 'Sdk')]
+      : [
+          path.join(home, 'Library', 'Android', 'sdk'),
+          path.join(home, 'Android', 'Sdk'),
+          '/usr/local/share/android-sdk',
+        ];
+
+    for (const sdk of sdkPaths) {
+      const btDir = path.join(sdk, 'build-tools');
+      if (!fs.existsSync(btDir)) continue;
+      try {
+        const versions = fs.readdirSync(btDir).sort().reverse();
+        for (const v of versions) {
+          const aapt2 = path.join(btDir, v, process.platform === 'win32' ? 'aapt2.exe' : 'aapt2');
+          if (fs.existsSync(aapt2)) { resolve(aapt2); return; }
+          const aapt = path.join(btDir, v, process.platform === 'win32' ? 'aapt.exe' : 'aapt');
+          if (fs.existsSync(aapt)) { resolve(aapt); return; }
+        }
+      } catch { /* ignore */ }
+    }
+    resolve(null);
+  });
+}
+
+function extractPackageName(apkPath) {
+  return new Promise(async (resolve) => {
+    const aaptPath = await findAapt();
+    if (!aaptPath) { resolve(null); return; }
+
+    const isAapt2 = path.basename(aaptPath).startsWith('aapt2');
+    const args = isAapt2
+      ? ['dump', 'packagename', apkPath]
+      : ['dump', 'badging', apkPath];
+
+    execFile(aaptPath, args, { timeout: 10000 }, (err, stdout) => {
+      if (err) { resolve(null); return; }
+      if (isAapt2) {
+        resolve(stdout.trim() || null);
+      } else {
+        const m = stdout.match(/package:\s*name='([^']+)'/);
+        resolve(m ? m[1] : null);
+      }
+    });
+  });
+}
+
+ipcMain.handle('get-package-name', async (_event, { apkPath }) => {
+  const pkg = await extractPackageName(apkPath);
+  return { packageName: pkg };
+});
+
+ipcMain.handle('uninstall-app', async (_event, { deviceId, packageName }) => {
+  const adbPath = await findAdb();
+  if (!adbPath) return { success: false, error: 'ADB não encontrado.' };
+
+  try {
+    const output = await new Promise((resolve, reject) => {
+      execFile(adbPath, ['-s', deviceId, 'uninstall', packageName], { timeout: 30000 }, (err, stdout, stderr) => {
+        if (err) reject(new Error((stderr || '') + (stdout || '') + (err.message || '')));
+        else resolve(stdout);
+      });
+    });
+    if (output.includes('Success')) {
+      return { success: true };
+    }
+    return { success: false, error: output.trim() };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('install-apk', async (_event, { deviceId, apkPath }) => {
   const adbPath = await findAdb();
   if (!adbPath) return { success: false, code: 'NO_ADB', title: 'ADB não encontrado', error: 'O ADB não está instalado.', tip: 'Volte ao passo 1 e instale o ADB.' };
@@ -339,4 +415,137 @@ ipcMain.handle('install-apk', async (_event, { deviceId, apkPath }) => {
 
     return { success: false, code: 'UNKNOWN', title: 'Erro na instalação', error: err.message, tip: 'Verifique se o celular está conectado e tente novamente.' };
   }
+});
+
+// ── APK History & Downloads ─────────────────────────────────
+function getHistoryPath() {
+  return path.join(app.getPath('userData'), 'apk-history.json');
+}
+
+function getDownloadsDir() {
+  const dir = path.join(app.getPath('userData'), 'apks');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function loadHistory() {
+  try {
+    return JSON.parse(fs.readFileSync(getHistoryPath(), 'utf-8'));
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(entries) {
+  fs.writeFileSync(getHistoryPath(), JSON.stringify(entries, null, 2));
+}
+
+ipcMain.handle('get-apk-history', () => loadHistory());
+
+ipcMain.handle('save-apk-to-history', (_event, entry) => {
+  const history = loadHistory();
+  const idx = history.findIndex(h => h.path === entry.path);
+  if (idx >= 0) {
+    history[idx] = { ...history[idx], ...entry };
+  } else {
+    history.unshift(entry);
+  }
+  saveHistory(history.slice(0, 50));
+  return { success: true };
+});
+
+ipcMain.handle('remove-from-history', (_event, { filePath }) => {
+  const history = loadHistory().filter(h => h.path !== filePath);
+  saveHistory(history);
+  return { success: true };
+});
+
+ipcMain.handle('delete-apk-file', (_event, { filePath }) => {
+  try {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    const history = loadHistory().filter(h => h.path !== filePath);
+    saveHistory(history);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('download-apk', (_event, { url }) => {
+  return new Promise((resolve) => {
+    let parsed;
+    try {
+      parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        return resolve({ success: false, error: 'URL deve começar com http:// ou https://' });
+      }
+    } catch {
+      return resolve({ success: false, error: 'URL inválida.' });
+    }
+
+    const downloadsDir = getDownloadsDir();
+    let fileName = 'download-' + Date.now() + '.apk';
+    const baseName = path.basename(parsed.pathname);
+    if (baseName && baseName.toLowerCase().endsWith('.apk')) {
+      fileName = baseName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    }
+    const filePath = path.join(downloadsDir, fileName);
+
+    function doRequest(reqUrl, redirects) {
+      if (redirects > 5) {
+        return resolve({ success: false, error: 'Muitos redirecionamentos.' });
+      }
+      const mod = reqUrl.startsWith('https') ? https : require('http');
+      mod.get(reqUrl, (res) => {
+        if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+          return doRequest(res.headers.location, redirects + 1);
+        }
+        if (res.statusCode !== 200) {
+          return resolve({ success: false, error: `Servidor retornou HTTP ${res.statusCode}` });
+        }
+
+        const total = parseInt(res.headers['content-length'] || '0', 10);
+        let downloaded = 0;
+        const file = fs.createWriteStream(filePath);
+
+        res.on('data', (chunk) => {
+          downloaded += chunk.length;
+          if (total > 0 && mainWindow) {
+            mainWindow.webContents.send('download-progress', {
+              percent: Math.round((downloaded / total) * 100),
+              downloaded,
+              total,
+            });
+          }
+        });
+
+        res.pipe(file);
+
+        file.on('finish', () => {
+          file.close();
+          const stats = fs.statSync(filePath);
+          resolve({
+            success: true,
+            apk: {
+              path: filePath,
+              name: fileName,
+              size: (stats.size / (1024 * 1024)).toFixed(1) + ' MB',
+              source: 'url',
+              url,
+              downloadedAt: new Date().toISOString(),
+            },
+          });
+        });
+
+        file.on('error', (err) => {
+          fs.unlink(filePath, () => {});
+          resolve({ success: false, error: err.message });
+        });
+      }).on('error', (err) => {
+        resolve({ success: false, error: err.message });
+      });
+    }
+
+    doRequest(url, 0);
+  });
 });
